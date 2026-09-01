@@ -59,45 +59,56 @@ async def on_ready():
 @bot.event
 async def on_voice_state_update(member, before, after):
     """
-    Auto-Assistance Engine:
-    When a member with the 'Blind' / 'Visually Impaired' role joins or switches voice channels,
-    Echo automatically follows them and updates its server nickname!
+    Auto-Assistance Engine with J2C (Join to Create) Protection:
+    When a member with the 'Blind' role joins a voice channel, waits 1.5s for any
+    Join-To-Create bot to move them into their final custom channel before following!
     """
-    if member.bot:
+    if member.bot or not has_assistance_role(member):
         return
 
-    # Check role
-    is_blind = has_assistance_role(member)
-    print(f"[VOICE EVENT] Member '{member.display_name}' state updated. Is blind role detected: {is_blind}")
-
-    if not is_blind:
-        return
-
-    guild = member.guild
-    voice_client = discord.utils.get(bot.voice_clients, guild=guild)
-
-    # Case 1: Blind user joined a voice channel or moved to a new voice channel
+    # User joined a channel or moved
     if after.channel is not None and (before.channel != after.channel):
-        print(f"[AUTO-ASSIST] Blind user '{member.display_name}' joined voice channel '{after.channel.name}'. Following...")
-        
-        if voice_client and voice_client.is_connected():
-            if voice_client.channel != after.channel:
-                await voice_client.move_to(after.channel)
-        else:
-            await after.channel.connect()
+        # Ignore initial Join To Create trigger channels
+        channel_name_lower = after.channel.name.lower()
+        if "join to create" in channel_name_lower or "j2c" in channel_name_lower:
+            print(f"[AUTO-ASSIST] User clicked '{after.channel.name}'. Waiting 1.5s for J2C relocation...")
+            await asyncio.sleep(1.5)
 
-        # Update bot nickname in the server to indicate active assistance
+        # Re-fetch latest voice channel of the member after delay
+        if not member.voice or not member.voice.channel:
+            return
+
+        final_channel = member.voice.channel
+        
+        # Don't join the generator channel if user is still in it for some reason
+        if "join to create" in final_channel.name.lower() or "j2c" in final_channel.name.lower():
+            return
+
+        print(f"[AUTO-ASSIST] Following blind user '{member.display_name}' into final channel '{final_channel.name}'")
+
+        guild = member.guild
+        voice_client = discord.utils.get(bot.voice_clients, guild=guild)
+
+        if voice_client and voice_client.is_connected():
+            if voice_client.channel != final_channel:
+                await voice_client.move_to(final_channel)
+        else:
+            await final_channel.connect()
+
+        # Update bot nickname to show assistance
         try:
             bot_member = guild.me
             await bot_member.edit(nick=f"Echo ♿ ({member.display_name})")
         except Exception as e:
             print(f"Nickname edit info: {e}")
 
-    # Case 2: Blind user left the voice channel
+    # Blind user left voice entirely
     elif after.channel is None and before.channel is not None:
-        print(f"[AUTO-ASSIST] Blind user '{member.display_name}' left voice channel.")
+        await asyncio.sleep(1.0)
+        guild = member.guild
+        voice_client = discord.utils.get(bot.voice_clients, guild=guild)
+        
         if voice_client and voice_client.is_connected():
-            # Check if there are any remaining blind users in the current voice channel
             current_channel = voice_client.channel
             remaining_assisted_users = [
                 m for m in current_channel.members 
@@ -105,9 +116,8 @@ async def on_voice_state_update(member, before, after):
             ]
             
             if not remaining_assisted_users:
-                print(f"[AUTO-ASSIST] No remaining blind users in '{current_channel.name}'. Disconnecting.")
+                print(f"[AUTO-ASSIST] Disconnecting from '{current_channel.name}' (no remaining blind users)")
                 await voice_client.disconnect()
-                # Reset bot nickname
                 try:
                     bot_member = guild.me
                     await bot_member.edit(nick="Echo ♿")
