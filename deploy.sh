@@ -1,22 +1,22 @@
 #!/bin/bash
-# Echo TTS Bot — 1-Click VPS Update & Deploy Script
+# Echo TTS Bot — 1-Click Linux VPS Deployment Script
 
 echo "=========================================="
-echo "🚀 Updating Echo Bot on VPS..."
+echo "🚀 Updating Echo Bot on Linux VPS..."
 echo "=========================================="
 
-# Navigate to script directory
+# Navigate to project directory
 cd "$(dirname "$0")"
 
-# Pull latest changes from GitHub
-echo "📥 Pulling latest open-source code from GitHub..."
+# Pull latest open-source code from GitHub
+echo "📥 Pulling latest code from GitHub..."
 git pull origin main
 
-# Install/Update dependencies
+# Install/Update Python dependencies with PEP 668 override
 echo "📦 Verifying Python dependencies..."
 pip3 install "discord.py[voice]" gTTS PyNaCl davey --break-system-packages
 
-# Reload/Restart with PM2
+# Reload & Restart with PM2
 echo "🔄 Reloading PM2 process..."
 pm2 restart ecosystem.config.js --update-env
 
@@ -24,6 +24,6 @@ pm2 restart ecosystem.config.js --update-env
 pm2 save
 
 echo "=========================================="
-echo "✅ Echo Bot successfully deployed and running!"
+echo "✅ Echo Bot Deployed & Running on VPS!"
 echo "=========================================="
 pm2 status
