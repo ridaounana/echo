@@ -32,6 +32,7 @@ last_speaker_timestamp = 0
 def convert_arabizi_to_arabic(text):
     """
     Converts Moroccan Arabizi / Franco-Arabic numbers & letters to Arabic characters:
+    - ach -> اش
     - 7 -> ح
     - kh / 5 -> خ
     - 3 -> ع
@@ -39,6 +40,8 @@ def convert_arabizi_to_arabic(text):
     - 2 -> أ
     - ch / sh -> ش
     """
+    # Replace whole word 'ach' -> 'اش'
+    text = re.sub(r'\bach\b', 'اش', text, flags=re.IGNORECASE)
     text = re.sub(r'kh|KH|Kh', 'خ', text)
     text = re.sub(r'ch|CH|Ch|sh|SH|Sh', 'ش', text)
     text = re.sub(r'7', 'ح', text)
@@ -54,7 +57,7 @@ def process_text_for_tts(text):
     """
     is_arabizi_or_arabic = bool(
         re.search(r'[\u0600-\u06FF]', text) or 
-        re.search(r'\bkh\b|7|3|9|5|2', text, flags=re.IGNORECASE)
+        re.search(r'\bach\b|\bkh\b|7|3|9|5|2', text, flags=re.IGNORECASE)
     )
 
     if is_arabizi_or_arabic:
@@ -133,7 +136,7 @@ async def on_message(message):
         last_speaker_id = message.author.id
         last_speaker_timestamp = now
 
-        print(f"[{selected_voice}] Reading: {text_to_speech.encode('utf-8', 'ignore').decode('utf-8')}")
+        print(f"[{selected_voice}] Original: '{message.content}' -> Reading: {text_to_speech.encode('utf-8', 'ignore').decode('utf-8')}")
 
         tts_filename = f"tts_{message.id}.mp3"
         
