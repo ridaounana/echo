@@ -10,10 +10,9 @@ import sys
 # Ensure UTF-8 output on Windows terminal
 sys.stdout.reconfigure(encoding='utf-8')
 
-# Configure Discord Intents (Intents.members & Intents.voice_states required)
+# Configure Discord Intents (voice_states and message_content)
 intents = discord.Intents.default()
 intents.message_content = True
-intents.members = True
 intents.voice_states = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -27,9 +26,11 @@ last_speaker_timestamp = 0
 
 def has_assistance_role(member):
     """Checks if a Discord member has a Blind / Visually Impaired accessibility role."""
-    if not member or member.bot:
+    if not member or getattr(member, 'bot', False):
         return False
-    return any(role.name.lower() in TARGET_ROLE_NAMES for role in member.roles)
+    
+    roles = getattr(member, 'roles', [])
+    return any(role.name.lower() in TARGET_ROLE_NAMES for role in roles)
 
 def preprocess_moroccan_text(text):
     """
