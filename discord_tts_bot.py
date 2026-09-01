@@ -118,7 +118,6 @@ async def on_voice_state_update(member, before, after):
             if not remaining_assisted_users:
                 print(f"[AUTO-ASSIST] Disconnecting from '{current_channel.name}' (no remaining blind users)")
                 await voice_client.disconnect()
-                # Reset bot nickname back to 'Echo'
                 try:
                     bot_member = guild.me
                     await bot_member.edit(nick="Echo")
@@ -158,7 +157,20 @@ async def on_message(message):
         return
 
     voice_client = discord.utils.get(bot.voice_clients, guild=message.guild)
+    
+    # Strictly read messages ONLY if:
+    # 1. Bot is connected to a voice channel
+    # 2. AND the message author is currently inside the exact same voice channel as the bot
+    #    (OR the text message was sent directly inside the Voice Channel's built-in chat)
     if voice_client and voice_client.is_connected():
+        author_voice_channel = getattr(message.author.voice, 'channel', None)
+        is_same_voice_channel = (author_voice_channel == voice_client.channel)
+        is_voice_chat_text_channel = (message.channel.id == voice_client.channel.id)
+
+        if not (is_same_voice_channel or is_voice_chat_text_channel):
+            # Ignore messages sent by users outside the bot's voice channel
+            return
+
         now = time.time()
 
         processed_content, msg_lang = preprocess_moroccan_text(message.content)
