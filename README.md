@@ -1,31 +1,22 @@
-# ♿ Echo — Discord Arabizi & Accessibility Neural TTS Bot
+# ♿ Echo — Discord Arabizi & Accessibility TTS Bot
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Discord.py](https://img.shields.io/badge/discord.py-2.7+-blueviolet.svg)](https://github.com/Rapptz/discord.py)
-[![Edge-TTS](https://img.shields.io/badge/Edge--TTS-AI%20Neural-green.svg)](https://github.com/rany2/edge-tts)
 
-**Echo** is an open-source, community-driven Discord Text-to-Speech (TTS) Accessibility bot powered by **Microsoft Edge AI Neural Voices**. It is designed to empower visually impaired and blind users in Discord communities by reading text chat messages out loud in voice channels.
+**Echo** is an open-source, community-driven Discord Text-to-Speech (TTS) Accessibility bot. It is designed to empower visually impaired and blind users in Discord communities by reading text chat messages out loud in voice channels.
 
-Specifically crafted for **Moroccan, North African, and Arabizi/3rabizi communities**, Echo features **high-definition AI Neural Voices** and an intelligent **3rabizi Transliteration Engine** that automatically converts number-substituted chat scripts (`7`, `kh`, `3`, `9`, `5`, `ch`) into authentic Arabic phonetic speech!
+Specifically crafted for **Moroccan, North African, and Arabizi/3rabizi communities**, Echo features **Automatic Role-Based Assistance** and an intelligent **3rabizi Transliteration Engine** that automatically converts number-substituted chat scripts (`7`, `kh`, `3`, `9`, `5`, `ch`) into authentic phonetic speech!
 
 ---
 
 ## 🌟 Key Features
 
-* **♿ Accessible AI Neural Voice Narration**: Ultra-realistic, human-like AI voice playback inside your Discord Voice channel.
-* **🎙️ Selectable AI Voices**:
-  * **`Jamal`** (`ar-MA-JamalNeural`) — Moroccan Male AI Voice *(Default)*
-  * **`Salma`** (`ar-EG-SalmaNeural`) — Egyptian Female AI Voice
-  * **`Mouna`** (`ar-MA-MounaNeural`) — Moroccan Female AI Voice
-  * **`Denise`** (`fr-FR-DeniseNeural`) — French Female AI Voice
-* **🇲🇦 Arabizi / 3rabizi Transliteration Engine**: Real-time phonetic conversion for North African & Middle Eastern chat scripts:
-  * `7` ➡️ `ح` *(e.g., "7bibi" ➔ "حبيبي")*
-  * `kh` / `5` ➡️ `خ` *(e.g., "khoya" ➔ "خويا")*
-  * `3` ➡️ `ع` *(e.g., "3afak" ➔ "عفاك")*
-  * `9` ➡️ `ق` *(e.g., "9ahwa" ➔ "قهوة")*
-  * `2` ➡️ `أ` *(e.g., "so2al" ➔ "سؤال")*
-  * `ch` / `sh` ➡️ `ش` *(e.g., "choukrane" ➔ "شكران")*
+* **♿ Hands-Free Auto-Assistance**: Automatically detects when a user with the **`Blind`** or **`Visually Impaired`** role joins any Voice Channel in your server:
+  * **Auto-Follow**: Automatically follows the user into whichever Voice Channel they join or move to.
+  * **Auto-Rename**: Renames the bot in the server to **`Echo ♿ (Assisting Username)`** to provide full transparency to server members.
+  * **Auto-Disconnect**: Automatically leaves when all visually impaired users leave voice channels.
+* **🇲🇦 Arabizi / 3rabizi Transliteration Engine**: Real-time phonetic conversion for North African & Middle Eastern chat scripts (`salam khoya`, `ach kat3awd`, `cv labas`).
 * **🧠 Smart Speaker Tracking**: Reads *"Username says..."* on the first message, and reads subsequent consecutive messages from the same user cleanly with natural pauses without repeating the username.
 * **🔐 Discord DAVE E2EE Support**: Built on `discord.py 2.7+` with full support for Discord's new DAVE End-to-End Encrypted voice protocol (`davey` & `PyNaCl`).
 
@@ -45,19 +36,20 @@ Specifically crafted for **Moroccan, North African, and Arabizi/3rabizi communit
 ```bash
 git clone https://github.com/ridaounana/echo.git
 cd echo
-pip install "discord.py[voice]" edge-tts PyNaCl davey
+pip install "discord.py[voice]" gTTS PyNaCl davey
 ```
 
-### 2. Set Up Discord Bot Token
+### 2. Set Up Discord Bot Token & Intents
 
-```bash
-# PowerShell
-$env:DISCORD_BOT_TOKEN="YOUR_DISCORD_BOT_TOKEN_HERE"
-```
+1. Go to **Discord Developer Portal** > **Bot** tab.
+2. Enable **Message Content Intent**, **Server Members Intent**, and **Presence Intent**.
+3. Create a Discord role named **`Blind`** or **`Visually Impaired`** in your server and assign it to users who need accessibility assistance.
 
 ### 3. Run the Bot
 
 ```bash
+# Set token in token.txt or environment variable
+echo "YOUR_DISCORD_BOT_TOKEN" > token.txt
 python discord_tts_bot.py
 ```
 
@@ -65,15 +57,12 @@ python discord_tts_bot.py
 
 ## 🎮 How to Use in Discord
 
-| Command | Description |
-| :--- | :--- |
-| **`!join`** | Joins your voice channel using the default **Jamal** (Moroccan Male) voice. |
-| **`!join Jamal`** | Joins your voice channel using **Jamal** (Moroccan Male Neural Voice). |
-| **`!join Salma`** | Joins your voice channel using **Salma** (Egyptian Female Neural Voice). |
-| **`!join Mouna`** | Joins your voice channel using **Mouna** (Moroccan Female Neural Voice). |
-| **`!voice Salma`** | Switch to Salma's voice on the fly without leaving the voice channel. |
-| **`!voice Jamal`** | Switch back to Jamal's Moroccan voice on the fly. |
-| **`!leave`** | Disconnects Echo from the Voice Channel. |
+* **Hands-Free Auto-Assistance**: Users with the **`Blind`** or **`Visually Impaired`** role don't need to type anything! The bot automatically joins their voice channel as soon as they enter.
+* **Manual Commands**:
+  | Command | Description |
+  | :--- | :--- |
+  | **`!join`** | Manually invites Echo into your current Voice Channel. |
+  | **`!leave`** | Disconnects Echo from the Voice Channel. |
 
 ---
 

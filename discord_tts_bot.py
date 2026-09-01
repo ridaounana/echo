@@ -10,15 +10,26 @@ import sys
 # Ensure UTF-8 output on Windows terminal
 sys.stdout.reconfigure(encoding='utf-8')
 
-# Configure Discord Intents
+# Configure Discord Intents (Intents.members & Intents.voice_states required)
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True
+intents.voice_states = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+# Target Role Names for Auto-Assistance
+TARGET_ROLE_NAMES = ["blind", "visually impaired", "accessibility", "mou3aq"]
 
 # State tracking
 last_speaker_id = None
 last_speaker_timestamp = 0
+
+def has_assistance_role(member):
+    """Checks if a Discord member has a Blind / Visually Impaired accessibility role."""
+    if not member or member.bot:
+        return False
+    return any(role.name.lower() in TARGET_ROLE_NAMES for role in member.roles)
 
 def preprocess_moroccan_text(text):
     """
@@ -31,7 +42,6 @@ def preprocess_moroccan_text(text):
     if has_arabic_script:
         return text, 'ar'
     else:
-        # Convert 3rabizi numbers into French-phonetic equivalents for smooth Latin Darija reading
         processed = text
         processed = re.sub(r'7', 'h', processed)
         processed = re.sub(r'3', 'a', processed)
@@ -41,19 +51,70 @@ def preprocess_moroccan_text(text):
 
 @bot.event
 async def on_ready():
-    print(f"[ONLINE] Echo Original Moroccan TTS Bot is online as: {bot.user}")
-    print("Engine: Classic gTTS (French for Latin Darija 'salam khoya' & Arabic for Arabic script)")
+    print(f"[ONLINE] Echo Auto-Assistance Accessibility Bot is online as: {bot.user}")
+    print("Auto-Assistance Active: Tracking users with 'Blind' or 'Visually Impaired' roles!")
+
+@bot.event
+async def on_voice_state_update(member, before, after):
+    """
+    Auto-Assistance Engine:
+    When a member with the 'Blind' / 'Visually Impaired' role joins or switches voice channels,
+    Echo automatically follows them and updates its server nickname!
+    """
+    if member.bot or not has_assistance_role(member):
+        return
+
+    guild = member.guild
+    voice_client = discord.utils.get(bot.voice_clients, guild=guild)
+
+    # Case 1: Blind user joined a voice channel or moved to a new voice channel
+    if after.channel is not None and (before.channel != after.channel):
+        print(f"[AUTO-ASSIST] Blind user '{member.display_name}' joined voice channel '{after.channel.name}'. Following...")
+        
+        if voice_client and voice_client.is_connected():
+            if voice_client.channel != after.channel:
+                await voice_client.move_to(after.channel)
+        else:
+            await after.channel.connect()
+
+        # Update bot nickname in the server to indicate active assistance
+        try:
+            bot_member = guild.me
+            await bot_member.edit(nick=f"Echo ♿ (Assisting {member.display_name})")
+        except Exception as e:
+            print(f"Nickname edit info: {e}")
+
+    # Case 2: Blind user left the voice channel
+    elif after.channel is None and before.channel is not None:
+        print(f"[AUTO-ASSIST] Blind user '{member.display_name}' left voice channel.")
+        if voice_client and voice_client.is_connected():
+            # Check if there are any remaining blind users in the current voice channel
+            current_channel = voice_client.channel
+            remaining_assisted_users = [
+                m for m in current_channel.members 
+                if not m.bot and has_assistance_role(m)
+            ]
+            
+            if not remaining_assisted_users:
+                print(f"[AUTO-ASSIST] No remaining blind users in '{current_channel.name}'. Disconnecting.")
+                await voice_client.disconnect()
+                # Reset bot nickname
+                try:
+                    bot_member = guild.me
+                    await bot_member.edit(nick="Echo ♿")
+                except Exception:
+                    pass
 
 @bot.command(name="join")
 async def join_channel(ctx):
-    """Join voice channel"""
+    """Join voice channel manually"""
     if ctx.author.voice:
         channel = ctx.author.voice.channel
         if ctx.voice_client:
             await ctx.voice_client.move_to(channel)
         else:
             await channel.connect()
-        await ctx.send(f"🎙️ Joined **{channel.name}**! Classic Moroccan TTS Active (Latin Darija + Arabic).")
+        await ctx.send(f"🎙️ Joined **{channel.name}**! Echo Accessibility Active.")
     else:
         await ctx.send("⚠️ You need to be in a voice channel first so I can join you!")
 
@@ -95,7 +156,6 @@ async def on_message(message):
 
         tts_filename = f"tts_{message.id}.mp3"
         
-        # Original gTTS Engine
         tts = gTTS(text=text_to_speech, lang=msg_lang, slow=False)
         tts.save(tts_filename)
 
