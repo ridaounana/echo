@@ -54,7 +54,7 @@ def process_text_for_tts(text):
     """
     is_arabizi_or_arabic = bool(
         re.search(r'[\u0600-\u06FF]', text) or 
-        re.search(r'\bkh\b|7|3|9|5|2', re.IGNORECASE)
+        re.search(r'\bkh\b|7|3|9|5|2', text, flags=re.IGNORECASE)
     )
 
     if is_arabizi_or_arabic:
@@ -158,7 +158,6 @@ if __name__ == "__main__":
     BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "YOUR_DISCORD_BOT_TOKEN_HERE")
     
     if BOT_TOKEN == "YOUR_DISCORD_BOT_TOKEN_HERE":
-        # Check if local token file exists
         token_file = "token.txt"
         if os.path.exists(token_file):
             with open(token_file, "r") as f:
