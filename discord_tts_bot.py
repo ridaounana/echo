@@ -59,28 +59,26 @@ async def on_ready():
 @bot.event
 async def on_voice_state_update(member, before, after):
     """
-    Auto-Assistance Engine with J2C (Join to Create) Protection:
+    Auto-Assistance Engine with J2C Protection:
     When a member with the 'Blind' role joins a voice channel, waits 1.5s for any
     Join-To-Create bot to move them into their final custom channel before following!
+    Renames bot to '[Username] ECHO'.
     """
     if member.bot or not has_assistance_role(member):
         return
 
     # User joined a channel or moved
     if after.channel is not None and (before.channel != after.channel):
-        # Ignore initial Join To Create trigger channels
         channel_name_lower = after.channel.name.lower()
         if "join to create" in channel_name_lower or "j2c" in channel_name_lower:
             print(f"[AUTO-ASSIST] User clicked '{after.channel.name}'. Waiting 1.5s for J2C relocation...")
             await asyncio.sleep(1.5)
 
-        # Re-fetch latest voice channel of the member after delay
         if not member.voice or not member.voice.channel:
             return
 
         final_channel = member.voice.channel
         
-        # Don't join the generator channel if user is still in it for some reason
         if "join to create" in final_channel.name.lower() or "j2c" in final_channel.name.lower():
             return
 
@@ -95,12 +93,14 @@ async def on_voice_state_update(member, before, after):
         else:
             await final_channel.connect()
 
-        # Update bot nickname to show assistance
+        # Update bot nickname in the server to '[Username] ECHO'
         try:
             bot_member = guild.me
-            await bot_member.edit(nick=f"Echo ♿ ({member.display_name})")
+            new_nickname = f"{member.display_name} ECHO"
+            print(f"[NICKNAME] Renaming bot to '{new_nickname}' in server '{guild.name}'")
+            await bot_member.edit(nick=new_nickname)
         except Exception as e:
-            print(f"Nickname edit info: {e}")
+            print(f"[NICKNAME ERROR] {e}")
 
     # Blind user left voice entirely
     elif after.channel is None and before.channel is not None:
@@ -118,9 +118,10 @@ async def on_voice_state_update(member, before, after):
             if not remaining_assisted_users:
                 print(f"[AUTO-ASSIST] Disconnecting from '{current_channel.name}' (no remaining blind users)")
                 await voice_client.disconnect()
+                # Reset bot nickname back to 'Echo'
                 try:
                     bot_member = guild.me
-                    await bot_member.edit(nick="Echo ♿")
+                    await bot_member.edit(nick="Echo")
                 except Exception:
                     pass
 
