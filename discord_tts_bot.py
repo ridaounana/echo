@@ -10,9 +10,10 @@ import sys
 # Ensure UTF-8 output on Windows terminal
 sys.stdout.reconfigure(encoding='utf-8')
 
-# Configure Discord Intents (voice_states and message_content)
+# Configure Discord Intents (members & voice_states required for role tracking)
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True
 intents.voice_states = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -62,7 +63,14 @@ async def on_voice_state_update(member, before, after):
     When a member with the 'Blind' / 'Visually Impaired' role joins or switches voice channels,
     Echo automatically follows them and updates its server nickname!
     """
-    if member.bot or not has_assistance_role(member):
+    if member.bot:
+        return
+
+    # Check role
+    is_blind = has_assistance_role(member)
+    print(f"[VOICE EVENT] Member '{member.display_name}' state updated. Is blind role detected: {is_blind}")
+
+    if not is_blind:
         return
 
     guild = member.guild
@@ -81,7 +89,7 @@ async def on_voice_state_update(member, before, after):
         # Update bot nickname in the server to indicate active assistance
         try:
             bot_member = guild.me
-            await bot_member.edit(nick=f"Echo ♿ (Assisting {member.display_name})")
+            await bot_member.edit(nick=f"Echo ♿ ({member.display_name})")
         except Exception as e:
             print(f"Nickname edit info: {e}")
 
