@@ -158,17 +158,12 @@ async def on_message(message):
 
     voice_client = discord.utils.get(bot.voice_clients, guild=message.guild)
     
-    # Strictly read messages ONLY if:
-    # 1. Bot is connected to a voice channel
-    # 2. AND the message author is currently inside the exact same voice channel as the bot
-    #    (OR the text message was sent directly inside the Voice Channel's built-in chat)
     if voice_client and voice_client.is_connected():
         author_voice_channel = getattr(message.author.voice, 'channel', None)
         is_same_voice_channel = (author_voice_channel == voice_client.channel)
         is_voice_chat_text_channel = (message.channel.id == voice_client.channel.id)
 
         if not (is_same_voice_channel or is_voice_chat_text_channel):
-            # Ignore messages sent by users outside the bot's voice channel
             return
 
         now = time.time()
@@ -205,15 +200,15 @@ async def on_message(message):
         voice_client.play(audio_source, after=after_playing)
 
 if __name__ == "__main__":
-    BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "YOUR_DISCORD_BOT_TOKEN_HERE")
+    BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "").strip()
     
-    if BOT_TOKEN == "YOUR_DISCORD_BOT_TOKEN_HERE":
+    if not BOT_TOKEN or BOT_TOKEN == "YOUR_DISCORD_BOT_TOKEN_HERE":
         token_file = "token.txt"
         if os.path.exists(token_file):
             with open(token_file, "r") as f:
                 BOT_TOKEN = f.read().strip()
     
-    if BOT_TOKEN == "YOUR_DISCORD_BOT_TOKEN_HERE" or not BOT_TOKEN:
+    if not BOT_TOKEN or BOT_TOKEN == "YOUR_DISCORD_BOT_TOKEN_HERE":
         print("Please set your DISCORD_BOT_TOKEN environment variable or save it in token.txt!")
     else:
         bot.run(BOT_TOKEN)
