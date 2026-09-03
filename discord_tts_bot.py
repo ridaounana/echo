@@ -56,6 +56,25 @@ def preprocess_moroccan_text(text):
         processed = re.sub(r'2', 'a', processed)    # hamza
         return processed, 'fr'
 
+def resolve_discord_syntax(message):
+    """
+    Replaces raw Discord markup (<@id> mentions, <#id> channels, <a:name:id> emoji) with
+    human-readable text, so TTS reads names instead of garbled numeric snowflake IDs
+    (which also protects those digits from the Arabizi digit transliteration below).
+    """
+    content = message.content
+
+    for user in message.mentions:
+        content = re.sub(rf'<@!?{user.id}>', f'@{user.display_name}', content)
+    for role in message.role_mentions:
+        content = re.sub(rf'<@&{role.id}>', f'@{role.name}', content)
+    for channel in message.channel_mentions:
+        content = re.sub(rf'<#{channel.id}>', f'#{channel.name}', content)
+
+    content = re.sub(r'<a?:(\w+):\d+>', r':\1:', content)
+
+    return content
+
 @bot.event
 async def on_ready():
     print(f"[ONLINE] Echo Auto-Assistance Accessibility Bot is online as: {bot.user}")
@@ -173,7 +192,7 @@ async def on_message(message):
 
         now = time.time()
 
-        processed_content, msg_lang = preprocess_moroccan_text(message.content)
+        processed_content, msg_lang = preprocess_moroccan_text(resolve_discord_syntax(message))
         intro = "يقول:" if msg_lang == 'ar' else "a dit:"
 
         if last_speaker_id == message.author.id and (now - last_speaker_timestamp) < 30:
