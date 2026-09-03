@@ -71,28 +71,47 @@ def has_assistance_role(member):
     roles = getattr(member, 'roles', [])
     return any(role.name.lower() in TARGET_ROLE_NAMES for role in roles)
 
+# Arabizi (digit-substituted Darija) -> real Arabic script, longest patterns first so
+# digraphs like "kh"/"gh"/"ch" are consumed before their single-letter components are.
+# gTTS's French voice has no phoneme for the consonants some of these digits stand in for
+# (hamza, ayn, khe, 7a, ghain, qaf don't exist in French), so "7" was previously rewritten
+# to the Latin letter 'h' and read as a silent/weak French h instead of the intended sound.
+# Routing the whole message through real Arabic script + the Arabic voice instead lets that
+# voice produce the actual phonemes. Spelling won't always be textbook-correct (short vowels
+# aren't elided the way a human writer would), but it's phonetically far closer.
+_ARABIZI_TO_ARABIC_RULES = [
+    (r"3['\u2019]", '\u063A'),
+    (r'kh', '\u062E'), (r'gh', '\u063A'), (r'ch', '\u0634'), (r'sh', '\u0634'), (r'dh', '\u0630'), (r'th', '\u062B'), (r'ou', '\u0648'),
+    (r'8', '\u063A'), (r'7', '\u062D'), (r'9', '\u0642'), (r'5', '\u062E'), (r'3', '\u0639'), (r'2', '\u0621'),
+    (r'b', '\u0628'), (r't', '\u062A'), (r'j', '\u062C'), (r'd', '\u062F'), (r'r', '\u0631'), (r'z', '\u0632'), (r's', '\u0633'),
+    (r'f', '\u0641'), (r'q', '\u0642'), (r'k', '\u0643'), (r'l', '\u0644'), (r'm', '\u0645'), (r'n', '\u0646'), (r'h', '\u0647'),
+    (r'w', '\u0648'), (r'y', '\u064A'), (r'a', '\u0627'), (r'i', '\u064A'), (r'o', '\u0648'), (r'u', '\u0648'), (r'e', ''),
+]
+_ARABIZI_TO_ARABIC_RE = re.compile('|'.join(f'({p})' for p, _ in _ARABIZI_TO_ARABIC_RULES), re.IGNORECASE)
+_ARABIZI_TO_ARABIC_REPLACEMENTS = [r for _, r in _ARABIZI_TO_ARABIC_RULES]
+
+def transliterate_arabizi_to_arabic(text):
+    def repl(match):
+        for i, group in enumerate(match.groups()):
+            if group is not None:
+                return _ARABIZI_TO_ARABIC_REPLACEMENTS[i]
+        return match.group(0)
+    return _ARABIZI_TO_ARABIC_RE.sub(repl, text)
+
 def preprocess_moroccan_text(text):
     """
     Preprocesses text for Moroccan users:
     - If message contains Arabic characters -> Use Arabic voice ('ar')
-    - If message contains Latin text (e.g., 'salam khoya', 'ach kat3awd', 'cv labas') -> Use French voice ('fr')
+    - If message contains Arabizi digits (7/3/9/5/8/2/3') -> transliterate to Arabic script -> Use Arabic voice ('ar')
+    - Otherwise (plain Latin text, e.g. English/French) -> Use French voice ('fr') unchanged
     """
-    has_arabic_script = bool(re.search(r'[\u0600-\u06FF]', text))
-
-    if has_arabic_script:
+    if re.search(r'[\u0600-\u06FF]', text):
         return text, 'ar'
-    else:
-        processed = text
-        # ghain (3' or 8) must run before the plain '3' -> 'a' (ayn) substitution below, else the
-        # leading 3 in "3'" would already be consumed
-        processed = re.sub(r"3['\u2019]", 'gh', processed)
-        processed = re.sub(r'8', 'gh', processed)   # ghain
-        processed = re.sub(r'7', 'h', processed)    # 7a
-        processed = re.sub(r'3', 'a', processed)    # ayn
-        processed = re.sub(r'9', 'k', processed)    # qaf
-        processed = re.sub(r'5', 'kh', processed)   # khe
-        processed = re.sub(r'2', 'a', processed)    # hamza
-        return processed, 'fr'
+
+    if re.search(r'[235789]', text):
+        return transliterate_arabizi_to_arabic(text), 'ar'
+
+    return text, 'fr'
 
 def resolve_discord_syntax(message):
     """
