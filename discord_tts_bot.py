@@ -45,10 +45,15 @@ def preprocess_moroccan_text(text):
         return text, 'ar'
     else:
         processed = text
-        processed = re.sub(r'7', 'h', processed)
-        processed = re.sub(r'3', 'a', processed)
-        processed = re.sub(r'9', 'k', processed)
-        processed = re.sub(r'5', 'kh', processed)
+        # ghain (3' or 8) must run before the plain '3' -> 'a' (ayn) substitution below, else the
+        # leading 3 in "3'" would already be consumed
+        processed = re.sub(r"3['\u2019]", 'gh', processed)
+        processed = re.sub(r'8', 'gh', processed)   # ghain
+        processed = re.sub(r'7', 'h', processed)    # 7a
+        processed = re.sub(r'3', 'a', processed)    # ayn
+        processed = re.sub(r'9', 'k', processed)    # qaf
+        processed = re.sub(r'5', 'kh', processed)   # khe
+        processed = re.sub(r'2', 'a', processed)    # hamza
         return processed, 'fr'
 
 @bot.event
