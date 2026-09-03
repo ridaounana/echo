@@ -7,8 +7,10 @@ import time
 import re
 import sys
 
-# Ensure UTF-8 output on Windows terminal
-sys.stdout.reconfigure(encoding='utf-8')
+# Ensure UTF-8 output on Windows terminal, and flush every line immediately -
+# stdout is block-buffered when piped to a log file (e.g. under PM2), which was
+# hiding several minutes of print() output during debugging on the VPS.
+sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
 
 # Configure Discord Intents (members & voice_states required for role tracking)
 intents = discord.Intents.default()
@@ -24,6 +26,42 @@ TARGET_ROLE_NAMES = ["blind", "visually impaired", "accessibility", "mou3aq"]
 # State tracking
 last_speaker_id = None
 last_speaker_timestamp = 0
+
+# Per-guild TTS playback queues, each drained by a single dedicated worker task.
+# Playback used to be serialized by having every on_message call busy-poll
+# voice_client.is_playing() in its own loop - with several messages arriving close
+# together, two of those loops could both observe "not playing" at the same instant
+# and race on voice_client.play(), so only one ever actually got spoken. Routing
+# every message through one queue per guild removes that race entirely.
+guild_tts_queues = {}
+guild_tts_workers = {}
+
+async def tts_queue_worker(guild_id):
+    queue = guild_tts_queues[guild_id]
+    while True:
+        voice_client, tts_filename = await queue.get()
+        try:
+            if voice_client and voice_client.is_connected():
+                done = asyncio.Event()
+
+                def after_playing(error, _done=done, _file=tts_filename):
+                    if error:
+                        print(f"[PLAYBACK ERROR] {error}")
+                    if os.path.exists(_file):
+                        try:
+                            os.remove(_file)
+                        except Exception:
+                            pass
+                    bot.loop.call_soon_threadsafe(_done.set)
+
+                voice_client.play(discord.FFmpegPCMAudio(tts_filename), after=after_playing)
+                await done.wait()
+            elif os.path.exists(tts_filename):
+                os.remove(tts_filename)
+        except Exception as e:
+            print(f"[TTS QUEUE ERROR] {e}")
+        finally:
+            queue.task_done()
 
 def has_assistance_role(member):
     """Checks if a Discord member has a Blind / Visually Impaired accessibility role."""
@@ -188,6 +226,7 @@ async def on_message(message):
         is_voice_chat_text_channel = (message.channel.id == voice_client.channel.id)
 
         if not (is_same_voice_channel or is_voice_chat_text_channel):
+            print(f"[SKIP] '{message.author}' message ignored - not in bot's voice channel ({message.channel})")
             return
 
         now = time.time()
@@ -199,29 +238,28 @@ async def on_message(message):
             text_to_speech = processed_content
         else:
             text_to_speech = f"{message.author.display_name} {intro} {processed_content}"
-        
+
         last_speaker_id = message.author.id
         last_speaker_timestamp = now
 
         print(f"[{msg_lang.upper()}] Original: '{message.content}' -> Reading: {text_to_speech.encode('utf-8', 'ignore').decode('utf-8')}")
 
         tts_filename = f"tts_{message.id}.mp3"
-        
-        tts = gTTS(text=text_to_speech, lang=msg_lang, slow=False)
-        tts.save(tts_filename)
 
-        while voice_client.is_playing():
-            await asyncio.sleep(0.3)
+        try:
+            # gTTS.save() blocks on a network call to Google; running it in a thread
+            # keeps the bot's event loop (and every other guild/message) responsive
+            # instead of freezing the whole bot for the duration of the request.
+            await asyncio.to_thread(gTTS(text=text_to_speech, lang=msg_lang, slow=False).save, tts_filename)
+        except Exception as e:
+            print(f"[TTS GENERATION ERROR] {e}")
+            return
 
-        def after_playing(error):
-            if os.path.exists(tts_filename):
-                try:
-                    os.remove(tts_filename)
-                except Exception:
-                    pass
+        if message.guild.id not in guild_tts_queues:
+            guild_tts_queues[message.guild.id] = asyncio.Queue()
+            guild_tts_workers[message.guild.id] = bot.loop.create_task(tts_queue_worker(message.guild.id))
 
-        audio_source = discord.FFmpegPCMAudio(tts_filename)
-        voice_client.play(audio_source, after=after_playing)
+        await guild_tts_queues[message.guild.id].put((voice_client, tts_filename))
 
 if __name__ == "__main__":
     BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "").strip()
